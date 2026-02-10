@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Document Parser (GitHub Pages Frontend)</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:#0b0d0e;color:#e8eaed}
+    .wrap{max-width:900px;margin:0 auto;padding:24px}
+    .card{background:#121516;border:1px solid #232a2c;border-radius:14px;padding:18px;margin:14px 0}
+    h1{margin:0 0 12px;font-size:22px}
+    label{display:block;margin:10px 0 6px;color:#cdd3d8}
+    input[type=text],input[type=file]{width:100%;padding:10px;border-radius:10px;border:1px solid #2a3436;background:#0f1213;color:#e8eaed}
+    button{padding:10px 14px;border-radius:10px;border:0;background:#2bf855;color:#041006;font-weight:700;cursor:pointer}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    .muted{color:#a9b0b6;font-size:13px;line-height:1.4}
+    .jobs a{color:#7ee787}
+    pre{white-space:pre-wrap;background:#0f1213;border:1px solid #232a2c;border-radius:12px;padding:12px;overflow:auto}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .row > *{flex:1}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Document Parser</h1>
+    <div class="muted">Frontend hosted on GitHub Pages. Backend runs on Render. Vision + structuring run on Ollama Cloud.</div>
+
+    <div class="card">
+      <label>Render Backend URL</label>
+      <input id="backendUrl" type="text" placeholder="https://your-service.onrender.com" />
+      <div class="muted">Tip: paste your Render service URL here once, it will be saved in your browser.</div>
+    </div>
+
+    <div class="card">
+      <form id="uploadForm">
+        <label>Upload PDF files</label>
+        <input id="files" type="file" accept="application/pdf" multiple required />
+        <label style="display:flex;align-items:center;gap:10px;margin-top:10px">
+          <input id="translate" type="checkbox" />
+          Translate to English
+        </label>
+        <div style="margin-top:12px">
+          <button id="uploadBtn" type="submit">Upload & Process</button>
+        </div>
+      </form>
+      <div id="uploadOut" class="muted" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <div style="font-weight:700">Jobs</div>
+          <div class="muted">Progress updates stream live via SSE.</div>
+        </div>
+        <button id="clearBtn" type="button">Clear</button>
+      </div>
+      <div id="jobs" class="jobs" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:8px">Debug Log</div>
+      <pre id="log"></pre>
+    </div>
+  </div>
+
+<script src="./app.js"></script>
+</body>
+</html>

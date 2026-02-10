@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Upload Documents</h1>
+</div>
+
+<div class="upload-container">
+    <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form" id="uploadForm">
+        <div class="upload-dropzone" id="dropzone">
+            <div class="dropzone-content">
+                <h3>Drop your PDFs here</h3>
+                <p>or click to browse</p>
+                <p class="upload-hint">Multiple files supported • Max {{ max_upload_mb }}MB each</p>
+                <p class="upload-hint">Each PDF can contain multiple invoices - they'll be detected automatically</p>
+            </div>
+            <input type="file" name="files" id="fileInput" accept=".pdf" multiple required>
+        </div>
+        
+        <div class="selected-files" id="selectedFiles" style="display: none;">
+            <div class="files-header">
+                <span class="files-count" id="filesCount">0 files selected</span>
+                <button type="button" class="btn btn-sm btn-outline" onclick="clearFiles()">Clear All</button>
+            </div>
+            <div class="files-list" id="filesList"></div>
+        </div>
+        
+        <div class="processing-options">
+            <label class="checkbox-option">
+                <input type="checkbox" name="translate_to_english" value="true">
+                <span class="checkbox-label">
+                    <strong>Translate to English</strong>
+                    <small>Translate structured JSON values to English after extraction</small>
+                </span>
+            </label>
+        </div>
+        
+        <div class="form-actions">
+            <a href="/" class="btn btn-outline">Cancel</a>
+            <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                <span class="btn-text">Upload & Process</span>
+                <span class="btn-loading" style="display: none;">Processing...</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const selectedFiles = document.getElementById('selectedFiles');
+const filesList = document.getElementById('filesList');
+const filesCount = document.getElementById('filesCount');
+const submitBtn = document.getElementById('submitBtn');
+const uploadForm = document.getElementById('uploadForm');
+const maxSizeMB = {{ max_upload_mb }};
+
+let selectedFilesList = [];
+
+// Click to browse
+dropzone.addEventListener('click', () => fileInput.click());
+
+// Drag and drop
+dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.classList.add('dragover');
+});
+
+dropzone.addEventListener('dragleave', () => {
+    dropzone.classList.remove('dragover');
+});
+
+dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    
+    const files = Array.from(e.dataTransfer.files);
+    handleFiles(files);
+});
+
+// File input change
+fileInput.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    handleFiles(files);
+});
+
+function handleFiles(files) {
+    // Filter and validate files
+    const validFiles = files.filter(file => {
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
+            alert(`"${file.name}" is not a PDF file`);
+            return false;
+        }
+        const sizeMB = file.size / (1024 * 1024);
+        if (sizeMB > maxSizeMB) {
+            alert(`"${file.name}" is too large (${sizeMB.toFixed(2)}MB). Max size is ${maxSizeMB}MB`);
+            return false;
+        }
+        // Check for duplicates
+        if (selectedFilesList.some(f => f.name === file.name && f.size === file.size)) {
+            return false;
+        }
+        return true;
+    });
+    
+    // Add to list
+    selectedFilesList = [...selectedFilesList, ...validFiles];
+    updateUI();
+}
+
+function removeFile(index) {
+    selectedFilesList.splice(index, 1);
+    updateUI();
+}
+
+function clearFiles() {
+    selectedFilesList = [];
+    updateUI();
+}
+
+function updateUI() {
+    if (selectedFilesList.length === 0) {
+        selectedFiles.style.display = 'none';
+        dropzone.style.display = 'flex';
+        submitBtn.disabled = true;
+        fileInput.value = '';
+        return;
+    }
+    
+    // Update file input
+    const dt = new DataTransfer();
+    selectedFilesList.forEach(f => dt.items.add(f));
+    fileInput.files = dt.files;
+    
+    // Update UI
+    selectedFiles.style.display = 'block';
+    dropzone.style.display = 'none';
+    submitBtn.disabled = false;
+    
+    // Update count
+    const totalSize = selectedFilesList.reduce((sum, f) => sum + f.size, 0);
+    filesCount.textContent = `${selectedFilesList.length} file(s) selected (${formatFileSize(totalSize)})`;
+    
+    // Update list
+    filesList.innerHTML = selectedFilesList.map((file, idx) => `
+        <div class="file-item">
+            <div class="file-info">
+                <span class="file-name">${file.name}</span>
+                <span class="file-size">${formatFileSize(file.size)}</span>
+            </div>
+            <button type="button" class="btn-remove" onclick="removeFile(${idx})">✕</button>
+        </div>
+    `).join('');
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+// Form submission
+uploadForm.addEventListener('submit', () => {
+    submitBtn.disabled = true;
+    submitBtn.querySelector('.btn-text').style.display = 'none';
+    submitBtn.querySelector('.btn-loading').style.display = 'inline';
+});
+</script>
+{% endblock %}

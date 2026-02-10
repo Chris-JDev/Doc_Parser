@@ -1,0 +1,632 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Processing: {{ document.original_filename }}</h1>
+</div>
+
+<div class="job-container">
+    <!-- Status Card -->
+    <div class="status-card" id="statusCard">
+        <div class="status-header">
+            <span class="status-icon" id="statusIcon">⏳</span>
+            <span class="status-text" id="statusText">Initializing...</span>
+        </div>
+        
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+            <div class="progress-text">
+                <span id="pagesProgress">0 / 0 pages</span>
+                <span id="elapsedTime">0s</span>
+            </div>
+            <div class="time-estimate" id="timeEstimate" style="display: none;">
+                <span class="estimate-label">⏱️ Estimated time remaining:</span>
+                <span class="estimate-value" id="estimateValue">Calculating...</span>
+            </div>
+        </div>
+        
+        <div class="action-buttons" id="actionButtons">
+            <button type="button" class="btn btn-danger" id="cancelBtn" onclick="cancelJob()">
+                Cancel Processing
+            </button>
+        </div>
+    </div>
+    
+    <!-- Processing Log -->
+    <div class="log-card">
+        <h3>Processing Log</h3>
+        <div class="log-container" id="logContainer">
+            <div class="log-entry info">
+                <span class="log-time">--:--:--</span>
+                <span class="log-message">Waiting for processing to start...</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Step Outputs Section -->
+    <div class="step-outputs-card" id="stepOutputsCard">
+        <h3>Step-by-Step Output</h3>
+        <div class="step-tabs">
+            <button class="step-tab active" data-tab="images" onclick="switchTab('images')">Images</button>
+            <button class="step-tab" data-tab="text" onclick="switchTab('text')">Extracted Text</button>
+            <button class="step-tab" data-tab="json" onclick="switchTab('json')">Structured JSON</button>
+        </div>
+        
+        <!-- Images Tab -->
+        <div class="step-content active" id="tab-images">
+            <div class="step-description">Page images generated from PDF conversion</div>
+            <div class="images-grid" id="imagesGrid">
+                <div class="empty-state">Images will appear here after PDF conversion...</div>
+            </div>
+        </div>
+        
+        <!-- Text Tab -->
+        <div class="step-content" id="tab-text">
+            <div class="step-description">Raw text extracted from each page using OCR</div>
+            <div class="text-outputs" id="textOutputs">
+                <div class="empty-state">Extracted text will appear here after OCR processing...</div>
+            </div>
+        </div>
+        
+        <!-- JSON Tab -->
+        <div class="step-content" id="tab-json">
+            <div class="step-description">Structured JSON data generated from extracted text</div>
+            <div class="json-outputs" id="jsonOutputs">
+                <div class="empty-state">Structured JSON will appear here after processing...</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pages Grid -->
+    <div class="pages-card">
+        <h3>Pages Summary</h3>
+        <div class="pages-grid" id="pagesGrid">
+            <!-- Pages will be added dynamically -->
+        </div>
+    </div>
+</div>
+
+<!-- Completion Modal -->
+<div class="modal" id="completionModal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-icon" id="modalIcon">✅</div>
+        <h2 id="modalTitle">Processing Complete!</h2>
+        <p id="modalMessage">Your document has been successfully processed.</p>
+        <div class="modal-actions">
+            <a href="/" class="btn btn-outline">Back to Dashboard</a>
+            <a href="/docs/{{ document.id }}" class="btn btn-primary" id="viewDocBtn">View Document</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const jobId = "{{ job.id }}";
+const documentId = "{{ document.id }}";
+let eventSource = null;
+let startTime = Date.now();
+let timerInterval = null;
+let totalPages = 0;
+let pagesCompleted = 0;
+let pageTimes = [];  // Track time per page for better estimates
+
+// Start timer
+function startTimer() {
+    timerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        document.getElementById('elapsedTime').textContent = formatDuration(elapsed);
+        updateEstimate();
+    }, 1000);
+}
+
+function formatDuration(seconds) {
+    if (seconds < 60) return seconds + 's';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return mins + 'm ' + secs + 's';
+}
+
+function updateEstimate() {
+    const estimateDiv = document.getElementById('timeEstimate');
+    const estimateValue = document.getElementById('estimateValue');
+    
+    if (totalPages === 0 || pagesCompleted === 0) {
+        return;  // Not enough info yet
+    }
+    
+    estimateDiv.style.display = 'block';
+    
+    if (pagesCompleted >= totalPages) {
+        estimateValue.textContent = 'Complete!';
+        return;
+    }
+    
+    // Calculate average time per page
+    let avgTimePerPage;
+    if (pageTimes.length > 0) {
+        // Use actual page times if available
+        avgTimePerPage = pageTimes.reduce((a, b) => a + b, 0) / pageTimes.length / 1000;
+    } else {
+        // Fallback to elapsed time
+        const elapsed = (Date.now() - startTime) / 1000;
+        avgTimePerPage = elapsed / pagesCompleted;
+    }
+    
+    const remainingPages = totalPages - pagesCompleted;
+    const estimatedRemaining = Math.ceil(avgTimePerPage * remainingPages);
+    
+    estimateValue.textContent = formatDuration(estimatedRemaining);
+}
+
+function formatTime() {
+    return new Date().toLocaleTimeString('en-US', { hour12: false });
+}
+
+function addLogEntry(message, type = 'info') {
+    const logContainer = document.getElementById('logContainer');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry ' + type;
+    entry.innerHTML = `
+        <span class="log-time">${formatTime()}</span>
+        <span class="log-message">${message}</span>
+    `;
+    logContainer.appendChild(entry);
+    logContainer.scrollTop = logContainer.scrollHeight;
+}
+
+// Tab switching for step outputs
+function switchTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.step-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.tab === tabName) {
+            tab.classList.add('active');
+        }
+    });
+    
+    // Update tab content
+    document.querySelectorAll('.step-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById('tab-' + tabName).classList.add('active');
+}
+
+// Add page image to the images grid
+function addPageImage(pageIndex, pageNumber) {
+    const grid = document.getElementById('imagesGrid');
+    
+    // Clear empty state if present
+    const emptyState = grid.querySelector('.empty-state');
+    if (emptyState) {
+        emptyState.remove();
+    }
+    
+    let imageCard = document.getElementById('img-' + pageIndex);
+    if (!imageCard) {
+        imageCard = document.createElement('div');
+        imageCard.id = 'img-' + pageIndex;
+        imageCard.className = 'image-output-card';
+        imageCard.innerHTML = `
+            <div class="image-header">
+                <span class="image-title">Page ${pageNumber}</span>
+                <span class="image-status loading">Loading...</span>
+            </div>
+            <div class="image-wrapper">
+                <img src="/pages/${documentId}/${pageIndex}" alt="Page ${pageNumber}" 
+                     onload="this.parentElement.parentElement.querySelector('.image-status').textContent = '✓ Ready';
+                            this.parentElement.parentElement.querySelector('.image-status').className = 'image-status ready';"
+                     onerror="this.parentElement.parentElement.querySelector('.image-status').textContent = '✗ Error';
+                             this.parentElement.parentElement.querySelector('.image-status').className = 'image-status error';">
+            </div>
+        `;
+        grid.appendChild(imageCard);
+    }
+}
+
+// Add extracted text output
+function addTextOutput(pageIndex, pageNumber, text, timeMs) {
+    const container = document.getElementById('textOutputs');
+    
+    // Clear empty state if present
+    const emptyState = container.querySelector('.empty-state');
+    if (emptyState) {
+        emptyState.remove();
+    }
+    
+    let textCard = document.getElementById('text-' + pageIndex);
+    if (!textCard) {
+        textCard = document.createElement('div');
+        textCard.id = 'text-' + pageIndex;
+        textCard.className = 'text-output-card';
+        textCard.innerHTML = `
+            <div class="text-header">
+                <span class="text-title">Page ${pageNumber}</span>
+                <span class="text-meta">${text.length} chars • ${(timeMs/1000).toFixed(2)}s</span>
+                <button class="btn btn-sm btn-outline copy-btn" onclick="copyText(${pageIndex})">Copy</button>
+            </div>
+            <div class="text-content" id="text-content-${pageIndex}">
+                <pre>${escapeHtml(text)}</pre>
+            </div>
+        `;
+        container.appendChild(textCard);
+    }
+}
+
+// Add structured JSON output
+function addJsonOutput(pageIndex, pageNumber, jsonData, timeMs) {
+    const container = document.getElementById('jsonOutputs');
+    
+    // Clear empty state if present
+    const emptyState = container.querySelector('.empty-state');
+    if (emptyState) {
+        emptyState.remove();
+    }
+    
+    let jsonCard = document.getElementById('json-' + pageIndex);
+    if (!jsonCard) {
+        jsonCard = document.createElement('div');
+        jsonCard.id = 'json-' + pageIndex;
+        jsonCard.className = 'json-output-card';
+        const jsonStr = JSON.stringify(jsonData, null, 2);
+        jsonCard.innerHTML = `
+            <div class="json-header">
+                <span class="json-title">📋 Page ${pageNumber}</span>
+                <span class="json-meta">${(timeMs/1000).toFixed(2)}s</span>
+                <button class="btn btn-sm btn-outline copy-btn" onclick="copyJson(${pageIndex})">Copy JSON</button>
+            </div>
+            <div class="json-content" id="json-content-${pageIndex}">
+                <pre>${escapeHtml(jsonStr)}</pre>
+            </div>
+        `;
+        container.appendChild(jsonCard);
+    }
+}
+
+// Add failed JSON indicator
+function addJsonFailed(pageIndex, pageNumber, error) {
+    const container = document.getElementById('jsonOutputs');
+    
+    // Clear empty state if present
+    const emptyState = container.querySelector('.empty-state');
+    if (emptyState) {
+        emptyState.remove();
+    }
+    
+    let jsonCard = document.getElementById('json-' + pageIndex);
+    if (!jsonCard) {
+        jsonCard = document.createElement('div');
+        jsonCard.id = 'json-' + pageIndex;
+        jsonCard.className = 'json-output-card failed';
+        jsonCard.innerHTML = `
+            <div class="json-header">
+                <span class="json-title">📋 Page ${pageNumber}</span>
+                <span class="json-meta error">Failed</span>
+            </div>
+            <div class="json-content error">
+                <p>Failed to structure JSON: ${escapeHtml(error)}</p>
+            </div>
+        `;
+        container.appendChild(jsonCard);
+    }
+}
+
+// Escape HTML for safe display
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Copy text to clipboard
+function copyText(pageIndex) {
+    const content = document.getElementById('text-content-' + pageIndex);
+    const text = content.querySelector('pre').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('Text copied to clipboard');
+    });
+}
+
+// Copy JSON to clipboard
+function copyJson(pageIndex) {
+    const content = document.getElementById('json-content-' + pageIndex);
+    const text = content.querySelector('pre').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('JSON copied to clipboard');
+    });
+}
+
+// Show toast notification
+function showToast(message) {
+    let toast = document.getElementById('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.className = 'toast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+function updateStatus(icon, text, cardClass = '') {
+    document.getElementById('statusIcon').textContent = icon;
+    document.getElementById('statusText').textContent = text;
+    const statusCard = document.getElementById('statusCard');
+    statusCard.className = 'status-card ' + cardClass;
+}
+
+function updateProgress(done, total) {
+    const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+    document.getElementById('progressFill').style.width = percent + '%';
+    document.getElementById('pagesProgress').textContent = `${done} / ${total} pages`;
+    
+    // Update tracking variables
+    pagesCompleted = done;
+    totalPages = total;
+    
+    // Show estimate div once we have total pages
+    if (total > 0) {
+        document.getElementById('timeEstimate').style.display = 'block';
+    }
+}
+
+function addPageCard(pageIndex, pageNumber, status = 'pending') {
+    const grid = document.getElementById('pagesGrid');
+    let card = document.getElementById('page-' + pageIndex);
+    
+    if (!card) {
+        card = document.createElement('div');
+        card.id = 'page-' + pageIndex;
+        card.className = 'page-card status-' + status;
+        card.innerHTML = `
+            <div class="page-number">Page ${pageNumber}</div>
+            <div class="page-status">${status}</div>
+            <div class="page-preview"></div>
+            <div class="page-time"></div>
+        `;
+        grid.appendChild(card);
+    }
+    
+    return card;
+}
+
+function updatePageCard(pageIndex, pageNumber, status, preview = '', timeMs = 0) {
+    let card = document.getElementById('page-' + pageIndex);
+    if (!card) {
+        card = addPageCard(pageIndex, pageNumber, status);
+    }
+    
+    card.className = 'page-card status-' + status;
+    card.querySelector('.page-status').textContent = status;
+    
+    if (preview) {
+        card.querySelector('.page-preview').textContent = preview.substring(0, 100) + '...';
+    }
+    
+    if (timeMs > 0) {
+        card.querySelector('.page-time').textContent = (timeMs / 1000).toFixed(2) + 's';
+    }
+}
+
+function showCompletionModal(success, message) {
+    const modal = document.getElementById('completionModal');
+    const icon = document.getElementById('modalIcon');
+    const title = document.getElementById('modalTitle');
+    const msg = document.getElementById('modalMessage');
+    const viewBtn = document.getElementById('viewDocBtn');
+    
+    if (success) {
+        icon.textContent = '✅';
+        title.textContent = 'Processing Complete!';
+        viewBtn.style.display = 'inline-block';
+    } else {
+        icon.textContent = '❌';
+        title.textContent = 'Processing Failed';
+        viewBtn.style.display = 'none';
+    }
+    
+    msg.textContent = message;
+    modal.style.display = 'flex';
+}
+
+function showCanceledModal() {
+    const modal = document.getElementById('completionModal');
+    const icon = document.getElementById('modalIcon');
+    const title = document.getElementById('modalTitle');
+    const msg = document.getElementById('modalMessage');
+    const viewBtn = document.getElementById('viewDocBtn');
+    
+    icon.textContent = '🚫';
+    title.textContent = 'Processing Canceled';
+    msg.textContent = 'The processing was canceled. Partial results may be available.';
+    viewBtn.textContent = 'View Partial Results';
+    viewBtn.style.display = 'inline-block';
+    
+    modal.style.display = 'flex';
+}
+
+async function cancelJob() {
+    if (!confirm('Are you sure you want to cancel processing?')) return;
+    
+    const btn = document.getElementById('cancelBtn');
+    btn.disabled = true;
+    btn.textContent = 'Canceling...';
+    
+    try {
+        const response = await fetch(`/api/jobs/${jobId}/cancel`, { method: 'POST' });
+        if (response.ok) {
+            addLogEntry('Cancel requested...', 'warning');
+        } else {
+            addLogEntry('Failed to cancel job', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Cancel Processing';
+        }
+    } catch (e) {
+        addLogEntry('Error canceling job: ' + e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Cancel Processing';
+    }
+}
+
+function connectSSE() {
+    eventSource = new EventSource(`/api/jobs/${jobId}/events`);
+    
+    eventSource.addEventListener('initial', (e) => {
+        const data = JSON.parse(e.data);
+        addLogEntry(`Job status: ${data.status}`, 'info');
+        
+        if (data.page_count > 0) {
+            updateProgress(data.current_page, data.page_count);
+            // Create page cards
+            for (let i = 0; i < data.page_count; i++) {
+                addPageCard(i, i + 1, i < data.current_page ? 'done' : 'pending');
+            }
+        }
+    });
+    
+    eventSource.addEventListener('status', (e) => {
+        const data = JSON.parse(e.data);
+        addLogEntry(data.message, 'info');
+        
+        if (data.status === 'converting') {
+            updateStatus('Converting PDF to images...');
+        } else if (data.status === 'extracting') {
+            updateStatus('Extracting text from pages...');
+            if (data.total_pages) {
+                updateProgress(0, data.total_pages);
+                for (let i = 0; i < data.total_pages; i++) {
+                    addPageCard(i, i + 1, 'pending');
+                }
+            }
+        } else if (data.status === 'translating') {
+            updateStatus('Translating to English...');
+        } else if (data.status === 'structuring') {
+            updateStatus('Generating structured JSON...');
+        }
+    });
+    
+    // New event: PDF converted to images
+    eventSource.addEventListener('pdf_converted', (e) => {
+        const data = JSON.parse(e.data);
+        addLogEntry(`PDF converted to ${data.total_pages} images`, 'success');
+        
+        // Add all page images to the grid
+        for (const img of data.images) {
+            addPageImage(img.page_index, img.page_number);
+        }
+        
+        // Auto-switch to images tab to show output
+        switchTab('images');
+    });
+    
+    // New event: Text extracted from a page
+    eventSource.addEventListener('text_extracted', (e) => {
+        const data = JSON.parse(e.data);
+        addLogEntry(`Page ${data.page_number} OCR complete (${data.text_length} chars)`, 'success');
+        
+        // Add extracted text output
+        addTextOutput(data.page_index, data.page_number, data.text, data.extract_time_ms);
+    });
+    
+    // New event: JSON structured for a page
+    eventSource.addEventListener('json_structured', (e) => {
+        const data = JSON.parse(e.data);
+        addLogEntry(`Page ${data.page_number} structured to JSON`, 'success');
+        
+        // Add JSON output
+        addJsonOutput(data.page_index, data.page_number, data.json_data, data.struct_time_ms);
+    });
+    
+    // New event: JSON structuring failed for a page
+    eventSource.addEventListener('json_failed', (e) => {
+        const data = JSON.parse(e.data);
+        addLogEntry(`Page ${data.page_number} JSON structuring failed: ${data.error}`, 'warning');
+        
+        // Add failed JSON indicator
+        addJsonFailed(data.page_index, data.page_number, data.error);
+    });
+    
+    eventSource.addEventListener('page_done', (e) => {
+        const data = JSON.parse(e.data);
+        addLogEntry(`Page ${data.page_number} extracted (${data.text_length} chars, ${(data.time_ms/1000).toFixed(2)}s)`, 'success');
+        updateProgress(data.page_number, data.total_pages);
+        updatePageCard(data.page_index, data.page_number, 'done', data.text_preview, data.time_ms);
+        
+        // Track page time for better estimates
+        if (data.time_ms) {
+            pageTimes.push(data.time_ms);
+        }
+    });
+    
+    eventSource.addEventListener('page_error', (e) => {
+        const data = JSON.parse(e.data);
+        addLogEntry(`Page ${data.page_index + 1} failed: ${data.error}`, 'error');
+        updatePageCard(data.page_index, data.page_index + 1, 'failed');
+    });
+    
+    eventSource.addEventListener('done', (e) => {
+        const data = JSON.parse(e.data);
+        clearInterval(timerInterval);
+        eventSource.close();
+        
+        updateStatus('✅', 'Processing Complete!', 'success');
+        document.getElementById('cancelBtn').style.display = 'none';
+        addLogEntry(`Completed in ${(data.total_time_ms/1000).toFixed(2)}s`, 'success');
+        
+        setTimeout(() => {
+            showCompletionModal(true, 'Your document has been successfully processed and structured.');
+        }, 500);
+    });
+    
+    eventSource.addEventListener('canceled', (e) => {
+        const data = JSON.parse(e.data);
+        clearInterval(timerInterval);
+        eventSource.close();
+        
+        updateStatus('🚫', 'Canceled', 'canceled');
+        document.getElementById('cancelBtn').style.display = 'none';
+        addLogEntry('Processing canceled by user', 'warning');
+        
+        setTimeout(() => {
+            showCanceledModal();
+        }, 500);
+    });
+    
+    eventSource.addEventListener('error', (e) => {
+        if (e.data) {
+            const data = JSON.parse(e.data);
+            clearInterval(timerInterval);
+            eventSource.close();
+            
+            updateStatus('❌', 'Failed', 'error');
+            document.getElementById('cancelBtn').style.display = 'none';
+            addLogEntry('Error: ' + data.error, 'error');
+            
+            setTimeout(() => {
+                showCompletionModal(false, data.error || 'An error occurred during processing.');
+            }, 500);
+        }
+    });
+    
+    eventSource.addEventListener('keepalive', (e) => {
+        // Just keep connection alive
+    });
+    
+    eventSource.onerror = (e) => {
+        if (eventSource.readyState === EventSource.CLOSED) {
+            addLogEntry('Connection closed', 'info');
+        }
+    };
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    startTimer();
+    connectSSE();
+});
+</script>
+{% endblock %}

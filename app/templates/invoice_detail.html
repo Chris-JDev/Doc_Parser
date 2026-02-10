@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <div class="header-left">
+        <a href="/docs/{{ document.id }}" class="back-link">← Back to Document</a>
+        <h1>Page {{ invoice.start_page or (invoice.invoice_index + 1) }} - {{ title }}</h1>
+    </div>
+    <div class="header-right">
+        <a href="/download/invoice/{{ invoice.id }}" class="btn btn-primary">Download JSON</a>
+    </div>
+</div>
+
+<div class="invoice-detail-container">
+    <!-- Page Summary -->
+    <div class="detail-card">
+        <h3>Extracted Data</h3>
+        <div class="summary-grid">
+            <div class="summary-item">
+                <span class="label">Page Number</span>
+                <span class="value">{{ invoice.start_page or (invoice.invoice_index + 1) }}</span>
+            </div>
+            <div class="summary-item">
+                <span class="label">Document #</span>
+                <span class="value">{{ invoice.document_number or '-' }}</span>
+            </div>
+            <div class="summary-item">
+                <span class="label">Supplier</span>
+                <span class="value">{{ invoice.supplier_name or '-' }}</span>
+            </div>
+            <div class="summary-item">
+                <span class="label">Customer</span>
+                <span class="value">{{ invoice.customer_name or '-' }}</span>
+            </div>
+            <div class="summary-item">
+                <span class="label">Issue Date</span>
+                <span class="value">{{ invoice.issue_date or '-' }}</span>
+            </div>
+            <div class="summary-item">
+                <span class="label">Total Amount</span>
+                <span class="value amount">
+                    {% if invoice.gross_amount %}
+                        {{ invoice.gross_amount }} {{ invoice.currency or '' }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </span>
+            </div>
+            <div class="summary-item">
+                <span class="label">Source File</span>
+                <span class="value">
+                    <a href="/docs/{{ document.id }}">{{ document.original_filename }}</a>
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Line Items -->
+    {% if invoice_json and invoice_json.line_items %}
+    <div class="detail-card">
+        <h3>Line Items</h3>
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Description</th>
+                        <th>Qty</th>
+                        <th>Unit Price</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in invoice_json.line_items %}
+                    <tr>
+                        <td>{{ item.line_no or loop.index }}</td>
+                        <td>{{ item.description or '-' }}</td>
+                        <td>{{ item.quantity or 1 }}</td>
+                        <td>{{ item.unit_price or '-' }}</td>
+                        <td>{{ item.line_total or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Totals -->
+    {% if invoice_json and invoice_json.totals %}
+    <div class="detail-card">
+        <h3>$ Totals</h3>
+        <div class="totals-grid">
+            <div class="total-item">
+                <span class="label">Net Amount</span>
+                <span class="value">{{ invoice_json.totals.net_amount or '-' }}</span>
+            </div>
+            <div class="total-item">
+                <span class="label">Tax Amount</span>
+                <span class="value">{{ invoice_json.totals.tax_amount or '-' }}</span>
+            </div>
+            <div class="total-item highlight">
+                <span class="label">Gross Amount</span>
+                <span class="value">{{ invoice_json.totals.gross_amount or '-' }}</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Full JSON -->
+    <div class="detail-card">
+        <h3>Raw JSON</h3>
+        <div class="json-viewer">
+            <pre><code>{{ invoice_json_str or 'No JSON available' }}</code></pre>
+        </div>
+    </div>
+</div>
+
+<style>
+.invoice-detail-container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.header-left {
+    flex: 1;
+}
+
+.header-right {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.back-link {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.summary-item .label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.summary-item .value {
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.summary-item .value.amount {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.totals-grid {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.total-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 1rem;
+    background: var(--background);
+    border-radius: var(--border-radius);
+    min-width: 150px;
+}
+
+.total-item.highlight {
+    background: var(--primary-color);
+    color: white;
+}
+
+.total-item.highlight .label {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.total-item .label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.total-item .value {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.json-viewer {
+    background: var(--background);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    max-height: 400px;
+    overflow: auto;
+}
+
+.json-viewer pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.8rem;
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+}
+</style>
+{% endblock %}
