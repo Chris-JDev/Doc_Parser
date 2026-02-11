@@ -20,7 +20,9 @@ curl http://localhost:11434/api/tags
 ### 3. Poppler (for PDF to Image conversion)
 
 1.Poppler for Windows- https://github.com/osber/poppler/releases
+
 2. Extract to a folder (e.g., `C:\Program Files\poppler`)
+
 3. Add the `bin` folder to your PATH:
    - `C:\Program Files\poppler\Library\bin`
    - Or set environment variable: `set PATH=%PATH%;C:\Program Files\poppler\Library\bin`
