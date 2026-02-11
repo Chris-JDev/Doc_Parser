@@ -1,28 +1,10 @@
-# Document Parser Web Application
-
-A complete web application for processing scanned PDF invoices and receipts using Ollama's local AI models. The app extracts text from image-only PDFs using a vision model and structures the data into a predefined JSON schema.
-
-## Features
-
-- **PDF Upload**: Upload scanned PDF invoices/receipts (up to 25MB by default)
-- **Vision-Based Text Extraction**: Uses `qwen3-vl:235b-cloud` model to extract text from scanned document images
-- **Structured JSON Output**: Uses `qwen3-vl:235b-cloud` model to convert extracted text into a strict JSON schema
-- **Real-Time Progress**: Live updates via Server-Sent Events (SSE) showing page-by-page processing
-- **Cancel Support**: Cancel processing mid-way and keep partial results
-- **Dashboard**: View all processed documents with key identifiers
-- **Detail View**: See page-by-page extracted text and final structured JSON
-- **Download**: Download original PDFs and generated JSON files
-- **Processing Statistics**: Track total and per-page processing times
+# Document Parser 
+qwen3-vl:235b-cloud
 
 ## Prerequisites
-
-### 1. Python 3.10+
-
-Make sure you have Python 3.10 or later installed.
+Python 
 
 ### 2. Ollama
-
-Install and run Ollama locally:
 
 ```bash
 # Install Ollama (see https://ollama.ai)
@@ -37,54 +19,20 @@ curl http://localhost:11434/api/tags
 
 ### 3. Poppler (for PDF to Image conversion)
 
-#### Windows
-1. Download Poppler for Windows from: https://github.com/osber/poppler/releases
+1.Poppler for Windows- https://github.com/osber/poppler/releases
 2. Extract to a folder (e.g., `C:\Program Files\poppler`)
 3. Add the `bin` folder to your PATH:
    - `C:\Program Files\poppler\Library\bin`
    - Or set environment variable: `set PATH=%PATH%;C:\Program Files\poppler\Library\bin`
 
-Alternatively, using Chocolatey:
-```powershell
-choco install poppler
-```
-
-Or using Scoop:
-```powershell
-scoop install poppler
-```
-
-#### macOS
-```bash
-brew install poppler
-```
-
-#### Linux (Ubuntu/Debian)
-```bash
-sudo apt-get install poppler-utils
-```
-
-#### Linux (Fedora)
-```bash
-sudo dnf install poppler-utils
-```
-
 ## Installation
 
-1. **Clone or navigate to the project directory**:
-```bash
-cd "c:\Users\chris\Desktop\doc parser ollama quewn vison\formator"
-```
-
-2. **Create a virtual environment** (recommended):
+ **Create a virtual environment** (recommended):
 ```bash
 python -m venv venv
 
-# Windows
 .\venv\Scripts\activate
 
-# macOS/Linux
-source venv/bin/activate
 ```
 
 3. **Install dependencies**:
@@ -109,11 +57,6 @@ set VISION_MODEL=qwen3-vl:235b-cloud
 set STRUCTURING_MODEL=qwen3-vl:235b-cloud
 set MAX_UPLOAD_MB=25
 
-# macOS/Linux
-export OLLAMA_BASE_URL=http://localhost:11434
-export VISION_MODEL=qwen3-vl:235b-cloud
-export STRUCTURING_MODEL=qwen3-vl:235b-cloud
-export MAX_UPLOAD_MB=25
 ```
 
 ## Running the Application
@@ -122,52 +65,11 @@ export MAX_UPLOAD_MB=25
 
 2. **Start the application**:
 ```bash
-# Using uvicorn directly (if in PATH)
-uvicorn app.main:app --reload
-
-# Or using Python module (recommended)
 python -m uvicorn app.main:app --reload
 ```
 
 3. **Open your browser** to: http://localhost:8000
 
-## Usage
-
-### Uploading a Document
-
-1. Click "Upload" in the navigation bar
-2. Drag and drop a PDF file or click to browse
-3. Click "Upload & Process" to start processing
-4. Watch real-time progress as each page is processed
-5. View results when processing completes
-
-### Dashboard
-
-The dashboard shows all processed documents with:
-- Filename
-- Status (queued, processing, done, failed, canceled)
-- Invoice/Receipt/Document/PO numbers
-- Reference numbers
-- Supplier name
-- Issue date
-- Processing time
-- Quick action buttons (View, Download PDF, Download JSON)
-
-### Document Detail View
-
-Click on any document to see:
-- Summary of extracted identifiers
-- Processing statistics
-- Page-by-page extracted text
-- Complete structured JSON output
-
-### Canceling Processing
-
-During processing, click the "Cancel Processing" button to stop:
-- Current page will complete
-- No further pages will be processed
-- No JSON structuring will occur
-- Partial results are preserved
 
 ## API Endpoints
 
@@ -266,33 +168,6 @@ data/
 └── json/           # Structured JSON output
 ```
 
-## Troubleshooting
-
-### "Failed to convert PDF" error
-- Ensure Poppler is installed and in your PATH
-- On Windows, verify `pdftoppm.exe` is accessible
-
-### "Failed to connect to Ollama" error
-- Verify Ollama is running: `curl http://localhost:11434/api/tags`
-- Check the `OLLAMA_BASE_URL` environment variable
-
-### Models not found
-- Pull the required models:
-  ```bash
-  ollama pull qwen3-vl:235b-cloud
-  ```
-
-### JSON validation failures
-- The app will attempt one repair pass
-- Check `data/json/{doc_id}_failed.json` for raw model output
-- Ensure the document contains readable text
-
-### Processing is slow
-- Vision model processing depends on your hardware
-- Consider using a GPU-enabled Ollama setup
-- Processing time scales with number of pages
-
-## Development
 
 ### Project Structure
 
