@@ -1,6 +1,5 @@
 @echo off
 echo Pulling Ollama models...
-ollama pull deepseek-ocr:3b
-ollama pull phi4-json
+ollama pull qwen3-vl:235b-cloud
 echo Starting Ollama server...
 ollama serve

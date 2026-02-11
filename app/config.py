@@ -20,12 +20,12 @@ for dir_path in [DATA_DIR, UPLOADS_DIR, PAGES_DIR, JSON_DIR, TEXT_DIR]:
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
 # Vision model for text extraction from images
-# Default: qwen3-vl:4b (multimodal vision-language model)
-VISION_MODEL = os.getenv("VISION_MODEL", "deepseek-ocr:3b")
+# Default: qwen3-vl:235b-cloud (multimodal vision-language model)
+VISION_MODEL = os.getenv("VISION_MODEL", "qwen3-vl:235b-cloud")
 
 # Structuring model for JSON generation
 # Default: phi4-json (custom Modelfile with strict JSON system prompt)
-STRUCTURING_MODEL = os.getenv("STRUCTURING_MODEL", "phi4-json")
+STRUCTURING_MODEL = os.getenv("STRUCTURING_MODEL", "qwen3-vl:235b-cloud")
 
 # Upload configuration
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "100"))

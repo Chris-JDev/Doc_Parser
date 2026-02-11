@@ -39,7 +39,7 @@ class OllamaClient:
         Call Ollama generate API.
         
         Args:
-            model: Model name (e.g., 'qwen-vl-4b', 'phi-4')
+            model: Model name (e.g., 'qwen3-vl:235b-cloud')
             prompt: Text prompt
             images: List of base64-encoded images (for vision models)
             stream: Whether to stream response (default False)
@@ -83,7 +83,7 @@ class OllamaClient:
         Generate text from an image using a vision model.
         
         Args:
-            model: Vision model name (e.g., 'qwen-vl-4b')
+            model: Vision model name (e.g., 'qwen3-vl:235b-cloud')
             prompt: Text prompt describing what to extract
             image_path: Path to the image file
         
@@ -128,7 +128,7 @@ class OllamaClient:
 
 # Global client instances - separate for vision and structuring
 class VisionClient(OllamaClient):
-    """Client specifically for vision model (qwen3-vl)."""
+    """Client specifically for vision model (qwen3-vl:235b-cloud)."""
     
     def __init__(self):
         super().__init__(timeout=600.0)  # Longer timeout for vision

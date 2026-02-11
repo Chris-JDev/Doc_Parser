@@ -5,8 +5,8 @@ A complete web application for processing scanned PDF invoices and receipts usin
 ## Features
 
 - **PDF Upload**: Upload scanned PDF invoices/receipts (up to 25MB by default)
-- **Vision-Based Text Extraction**: Uses `qwen-vl-4b` model to extract text from scanned document images
-- **Structured JSON Output**: Uses `phi-4` model to convert extracted text into a strict JSON schema
+- **Vision-Based Text Extraction**: Uses `qwen3-vl:235b-cloud` model to extract text from scanned document images
+- **Structured JSON Output**: Uses `qwen3-vl:235b-cloud` model to convert extracted text into a strict JSON schema
 - **Real-Time Progress**: Live updates via Server-Sent Events (SSE) showing page-by-page processing
 - **Cancel Support**: Cancel processing mid-way and keep partial results
 - **Dashboard**: View all processed documents with key identifiers
@@ -29,8 +29,7 @@ Install and run Ollama locally:
 # On Windows: Download from https://ollama.ai/download
 
 # Pull required models
-ollama pull qwen-vl-4b
-ollama pull phi-4
+ollama pull qwen3-vl:235b-cloud
 
 # Verify Ollama is running
 curl http://localhost:11434/api/tags
@@ -100,20 +99,20 @@ Set environment variables (optional - defaults shown):
 ```bash
 # Windows PowerShell
 $env:OLLAMA_BASE_URL = "http://localhost:11434"
-$env:VISION_MODEL = "qwen-vl-4b"
-$env:STRUCTURING_MODEL = "phi-4"
+$env:VISION_MODEL = "qwen3-vl:235b-cloud"
+$env:STRUCTURING_MODEL = "qwen3-vl:235b-cloud"
 $env:MAX_UPLOAD_MB = "25"
 
 # Windows CMD
 set OLLAMA_BASE_URL=http://localhost:11434
-set VISION_MODEL=qwen-vl-4b
-set STRUCTURING_MODEL=phi-4
+set VISION_MODEL=qwen3-vl:235b-cloud
+set STRUCTURING_MODEL=qwen3-vl:235b-cloud
 set MAX_UPLOAD_MB=25
 
 # macOS/Linux
 export OLLAMA_BASE_URL=http://localhost:11434
-export VISION_MODEL=qwen-vl-4b
-export STRUCTURING_MODEL=phi-4
+export VISION_MODEL=qwen3-vl:235b-cloud
+export STRUCTURING_MODEL=qwen3-vl:235b-cloud
 export MAX_UPLOAD_MB=25
 ```
 
@@ -280,8 +279,7 @@ data/
 ### Models not found
 - Pull the required models:
   ```bash
-  ollama pull qwen-vl-4b
-  ollama pull phi-4
+  ollama pull qwen3-vl:235b-cloud
   ```
 
 ### JSON validation failures

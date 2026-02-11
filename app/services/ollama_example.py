@@ -17,7 +17,7 @@ from pathlib import Path
 # =============================================================================
 
 OLLAMA_BASE_URL = "http://localhost:11434"  # Default Ollama URL
-VISION_MODEL = "qwen2-vl:7b"               # Vision model for images
+VISION_MODEL = "qwen3-vl:235b-cloud"               # Vision model for images
 TEXT_MODEL = "llama3.2:3b"                   # Text-only model
 
 
@@ -77,7 +77,7 @@ async def send_image_to_ollama(
     Args:
         image_path: Path to the image file (PNG, JPG, etc.)
         prompt: Text prompt describing what you want from the image
-        model: Vision-capable model (e.g., "qwen2-vl:7b", "llava:7b")
+        model: Vision-capable model (e.g., "qwen3-vl:235b-cloud", "llava:7b")
     
     Returns:
         Generated text response from Ollama
@@ -105,7 +105,7 @@ async def send_image_to_ollama(
 # result = await send_image_to_ollama(
 #     image_path=Path("page_1.png"),
 #     prompt="Extract all text from this document image",
-#     model="qwen2-vl:7b"
+#     model="qwen3-vl:235b-cloud"
 # )
 # print(result)
 
@@ -258,7 +258,7 @@ async def list_available_models() -> list[str]:
 # QUICK REFERENCE - Common Vision Models:
 # =============================================================================
 #
-# qwen2-vl:7b     - Good balance of speed/quality for document OCR
+# qwen3-vl:235b-cloud     - Good balance of speed/quality for document OCR
 # llava:7b        - Fast, general purpose vision
 # llava:13b       - Better quality, slower
 # bakllava        - Good for detailed analysis
