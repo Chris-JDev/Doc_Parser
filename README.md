@@ -202,13 +202,3 @@ formator/
 └── README.md
 ```
 
-### Adding New Features
-
-1. Models are defined in `app/models.py`
-2. Routes are in `app/main.py`
-3. Business logic is in `app/services/`
-4. Templates use Jinja2 in `app/templates/`
-
-## License
-
-MIT License
