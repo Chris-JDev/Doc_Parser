@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ document.original_filename }}</h1>
+        <span class="status-badge status-{{ document.status }}">{{ document.status }}</span>
+        {% if document.invoice_count %}
+        <span class="invoice-count-badge">{{ document.invoice_count }} page{{ 's' if document.invoice_count > 1 else '' }} processed</span>
+        {% endif %}
+    </div>
+    <div class="header-actions">
+        <a href="/download/pdf/{{ document.id }}" class="btn btn-outline">Download PDF</a>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="summary-grid">
+    <div class="summary-card">
+        <h4>Document Info</h4>
+        <table class="summary-table">
+            <tr>
+                <td>Pages:</td>
+                <td>{{ document.page_count }}</td>
+            </tr>
+            <tr>
+                <td>JSON Files:</td>
+                <td>{{ document.invoice_count or 0 }} (one per page)</td>
+            </tr>
+            <tr>
+                <td>Total Time:</td>
+                <td>{{ (document.total_time_ms / 1000) | round(2) if document.total_time_ms else '-' }}s</td>
+            </tr>
+            <tr>
+                <td>Created:</td>
+                <td>{{ document.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            </tr>
+            {% if document.translate_to_english %}
+            <tr>
+                <td>Translated:</td>
+                <td>✅ Yes</td>
+            </tr>
+            {% endif %}
+            {% if document.error_message %}
+            <tr>
+                <td>Error:</td>
+                <td class="error-text">{{ document.error_message }}</td>
+            </tr>
+            {% endif %}
+        </table>
+    </div>
+</div>
+
+<!-- Invoices Section (one per page) -->
+{% if invoices %}
+<div class="section-header">
+    <h2>Page JSONs ({{ invoices | length }} file{{ 's' if invoices | length > 1 else '' }})</h2>
+    <p class="section-subtitle">Each page has been processed into a separate JSON file</p>
+</div>
+<div class="invoices-grid">
+    {% for inv in invoices %}
+    <div class="invoice-card">
+        <div class="invoice-header">
+            <span class="invoice-number">Page {{ inv.start_page or (loop.index) }}</span>
+            <div class="header-buttons">
+                <a href="/download/invoice/{{ inv.id }}" class="btn btn-sm btn-primary">JSON</a>
+                <a href="/invoices/{{ inv.id }}" class="btn btn-sm btn-outline">View</a>
+            </div>
+        </div>
+        <div class="invoice-body">
+            <div class="invoice-field">
+                <span class="field-label">Document #</span>
+                <span class="field-value">{{ inv.document_number or '-' }}</span>
+            </div>
+            <div class="invoice-field">
+                <span class="field-label">Supplier</span>
+                <span class="field-value">{{ inv.supplier_name or '-' }}</span>
+            </div>
+            <div class="invoice-field">
+                <span class="field-label">Date</span>
+                <span class="field-value">{{ inv.issue_date or '-' }}</span>
+            </div>
+            <div class="invoice-field highlight">
+                <span class="field-label">Amount</span>
+                <span class="field-value">
+                    {% if inv.gross_amount %}
+                        {{ inv.gross_amount }} {{ inv.currency or '' }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Failed Pages Section -->
+{% set failed_pages = pages | selectattr('status', 'equalto', 'failed') | list %}
+{% if failed_pages %}
+<div class="section-header">
+    <h2>Failed Pages ({{ failed_pages | length }})</h2>
+    <p class="section-subtitle">These pages could not be structured into valid JSON - showing raw model output</p>
+</div>
+<div class="failed-pages-list">
+    {% for page in failed_pages %}
+    <div class="failed-page-card">
+        <div class="failed-page-header">
+            <span class="page-number">Page {{ page.page_index + 1 }}</span>
+            <span class="status-badge status-failed">Failed</span>
+        </div>
+        {% if page.error_message %}
+        <div class="error-message">
+            <strong>Error:</strong> {{ page.error_message }}
+        </div>
+        {% endif %}
+        {% if page.raw_json %}
+        <div class="raw-output-section">
+            <div class="raw-output-header">
+                <span>Raw Model Output:</span>
+                <button class="btn btn-sm btn-outline" onclick="copyRawJson({{ loop.index0 }})">Copy</button>
+            </div>
+            <pre class="raw-json-output" id="raw-json-{{ loop.index0 }}">{{ page.raw_json }}</pre>
+        </div>
+        {% else %}
+        <div class="no-output">No raw output available</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Tabs -->
+<div class="tabs">
+    <button class="tab-btn active" onclick="showTab('pages')">Extracted Text ({{ pages | length }})</button>
+</div>
+
+<!-- Pages Tab -->
+<div class="tab-content" id="pages-tab">
+    <div class="pages-list">
+        {% for page in pages %}
+        <div class="page-detail-card">
+            <div class="page-header">
+                <h4>Page {{ page.page_index + 1 }}</h4>
+                <div class="page-meta">
+                    <span class="status-badge status-{{ page.status }}">{{ page.status }}</span>
+                    {% if page.page_time_ms %}
+                    <span class="page-time">{{ (page.page_time_ms / 1000) | round(2) }}s</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="page-text-container">
+                <pre class="page-text">{{ page.full_text }}</pre>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.section-subtitle {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+}
+
+.invoices-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.invoice-card {
+    background: var(--surface);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+}
+
+.invoice-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--background);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.header-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.invoice-number {
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.invoice-body {
+    padding: 1rem;
+}
+
+.invoice-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.invoice-field:last-child {
+    border-bottom: none;
+}
+
+.invoice-field.highlight {
+    background: var(--background);
+    margin: 0.5rem -1rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--border-radius);
+}
+
+.invoice-field.highlight .field-value {
+    font-weight: 700;
+    color: var(--primary-color);
+    font-size: 1.1rem;
+}
+
+.field-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.field-value {
+    font-weight: 500;
+}
+
+.section-header {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+.failed-pages-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.failed-page-card {
+    background: var(--surface);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-md);
+    border-left: 4px solid #ef4444;
+    overflow: hidden;
+}
+
+.failed-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--background);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.failed-page-header .page-number {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.error-message {
+    padding: 0.75rem 1rem;
+    background: #fef2f2;
+    color: #991b1b;
+    font-size: 0.875rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.raw-output-section {
+    padding: 1rem;
+}
+
+.raw-output-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.raw-json-output {
+    background: var(--background);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    font-size: 0.75rem;
+    overflow-x: auto;
+    max-height: 400px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.no-output {
+    padding: 1rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showTab(tabName) {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.style.display = 'none';
+    });
+    
+    // Remove active from all buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show selected tab
+    document.getElementById(tabName + '-tab').style.display = 'block';
+    
+    // Mark button as active
+    event.target.classList.add('active');
+}
+
+function copyJson() {
+    const jsonText = document.getElementById('jsonDisplay').textContent;
+    navigator.clipboard.writeText(jsonText).then(() => {
+        alert('JSON copied to clipboard!');
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+    });
+}
+
+function copyRawJson(index) {
+    const rawText = document.getElementById('raw-json-' + index).textContent;
+    navigator.clipboard.writeText(rawText).then(() => {
+        alert('Raw output copied to clipboard!');
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+    });
+}
+</script>
+{% endblock %}

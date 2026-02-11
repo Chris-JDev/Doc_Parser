@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Document Dashboard</h1>
+    <a href="/upload" class="btn btn-primary">+ Upload Documents</a>
+</div>
+
+{% if documents %}
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Filename</th>
+                <th>Status</th>
+                <th>Invoices</th>
+                <th>Pages</th>
+                <th>Processing Time</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for doc in documents %}
+            <tr class="status-{{ doc.status }}">
+                <td>
+                    <a href="/docs/{{ doc.id }}" class="doc-link">{{ doc.original_filename }}</a>
+                </td>
+                <td>
+                    <span class="status-badge status-{{ doc.status }}">{{ doc.status }}</span>
+                </td>
+                <td>
+                    {% if doc.invoice_count %}
+                        <span class="invoice-count-badge">{{ doc.invoice_count }}</span>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>{{ doc.page_count or '-' }}</td>
+                <td>
+                    {% if doc.total_time_ms %}
+                        {{ (doc.total_time_ms / 1000) | round(2) }}s
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>{{ doc.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td class="actions">
+                    <div class="action-buttons">
+                        {% if doc.status == 'done' %}
+                            <a href="/docs/{{ doc.id }}" class="btn btn-sm btn-secondary">View</a>
+                            <a href="/download/pdf/{{ doc.id }}" class="btn btn-sm btn-outline">PDF</a>
+                            <a href="/download/json/{{ doc.id }}" class="btn btn-sm btn-outline">JSON</a>
+                        {% elif doc.status in ['queued', 'processing'] %}
+                            {% if doc.job %}
+                            <a href="/jobs/{{ doc.job.id }}" class="btn btn-sm btn-primary">Progress</a>
+                            {% endif %}
+                        {% elif doc.status == 'failed' %}
+                            <a href="/docs/{{ doc.id }}" class="btn btn-sm btn-secondary">Details</a>
+                            <a href="/download/pdf/{{ doc.id }}" class="btn btn-sm btn-outline">PDF</a>
+                        {% elif doc.status == 'canceled' %}
+                            <a href="/docs/{{ doc.id }}" class="btn btn-sm btn-secondary">Details</a>
+                            <a href="/download/pdf/{{ doc.id }}" class="btn btn-sm btn-outline">PDF</a>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Invoice Details Section -->
+{% if invoices %}
+<div class="section-header">
+    <h2>All Invoices</h2>
+</div>
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Source File</th>
+                <th>Document #</th>
+                <th>Supplier</th>
+                <th>Amount</th>
+                <th>Issue Date</th>
+                <th>Pages</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inv in invoices %}
+            <tr>
+                <td>
+                    <a href="/docs/{{ inv.document_id }}" class="doc-link">{{ inv.document.original_filename }}</a>
+                </td>
+                <td>{{ inv.document_number or '-' }}</td>
+                <td>{{ inv.supplier_name or '-' }}</td>
+                <td>
+                    {% if inv.gross_amount %}
+                        {{ inv.gross_amount }} {{ inv.currency or '' }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>{{ inv.issue_date or '-' }}</td>
+                <td>
+                    {% if inv.start_page and inv.end_page %}
+                        {{ inv.start_page }}-{{ inv.end_page }}
+                    {% elif inv.start_page %}
+                        {{ inv.start_page }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td class="actions">
+                    <a href="/invoices/{{ inv.id }}" class="btn btn-sm btn-secondary">View</a>
+                    <a href="/download/invoice/{{ inv.id }}" class="btn btn-sm btn-outline">JSON</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% else %}
+<div class="empty-state">
+    <h2>No documents yet</h2>
+    <p>Upload your first scanned PDF invoice or receipt to get started.</p>
+    <a href="/upload" class="btn btn-primary btn-lg">Upload Documents</a>
+</div>
+{% endif %}
+{% endblock %}
