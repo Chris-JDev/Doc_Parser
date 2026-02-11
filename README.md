@@ -5,7 +5,7 @@ qwen3-vl:235b-cloud
 Python 
 
 ### 2. Ollama
-
+ 
 ```bash
 # Install Ollama (see https://ollama.ai)
 # On Windows: Download from https://ollama.ai/download
