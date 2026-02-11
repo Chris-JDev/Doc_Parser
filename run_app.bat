@@ -1,0 +1,3 @@
+@echo off
+echo Starting Uvicorn server...
+uvicorn app.main:app --reload
